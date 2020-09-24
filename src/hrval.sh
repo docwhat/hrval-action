@@ -14,22 +14,22 @@ fi
 
 echo "Processing ${HELM_RELEASE}"
 
-function isHelmRelease {
+function isHelmRelease() {
   KIND=$(yq r ${1} kind)
   if [[ ${KIND} == "HelmRelease" ]]; then
-      echo true
+    echo true
   else
     echo false
   fi
 }
 
-function download {
+function download() {
   CHART_REPO=$(yq r ${1} spec.chart.repository)
   CHART_NAME=$(yq r ${1} spec.chart.name)
   CHART_VERSION=$(yq r ${1} spec.chart.version)
   CHART_DIR=${2}/${CHART_NAME}
 
-  CHART_REPO_MD5=`/bin/echo $CHART_REPO | /usr/bin/md5sum | cut -f1 -d" "`
+  CHART_REPO_MD5=$(/bin/echo $CHART_REPO | /usr/bin/md5sum | cut -f1 -d" ")
 
   if [[ ${HELM_VER} == "v3" ]]; then
     helmv3 repo add ${CHART_REPO_MD5} ${CHART_REPO}
@@ -44,8 +44,7 @@ function download {
   echo ${CHART_DIR}
 }
 
-
-function fetch {
+function fetch() {
   cd ${1}
   git init -q
   git remote add origin ${3}
@@ -55,18 +54,17 @@ function fetch {
   echo ${2}
 }
 
-
-function clone {
+function clone() {
   ORIGIN=$(git rev-parse --show-toplevel)
   CHART_GIT_REPO=$(yq r ${1} spec.chart.git)
   RELEASE_GIT_REPO=$(git remote get-url origin)
 
-  CHART_BASE_URL=$(basename $(echo "${CHART_GIT_REPO}" | sed -e 's/ssh:\/\///' -e 's/http:\/\///' -e 's/https:\/\///' -e 's/git@//' -e 's/:/\//') .git )
-  RELEASE_BASE_URL=$(basename $(echo "${RELEASE_GIT_REPO}" | sed -e 's/ssh:\/\///' -e 's/http:\/\///' -e 's/https:\/\///' -e 's/git@//' -e 's/:/\//') .git )
+  CHART_BASE_URL=$(basename $(echo "${CHART_GIT_REPO}" | sed -e 's/ssh:\/\///' -e 's/http:\/\///' -e 's/https:\/\///' -e 's/git@//' -e 's/:/\//') .git)
+  RELEASE_BASE_URL=$(basename $(echo "${RELEASE_GIT_REPO}" | sed -e 's/ssh:\/\///' -e 's/http:\/\///' -e 's/https:\/\///' -e 's/git@//' -e 's/:/\//') .git)
 
-  if [[ -n "${GITHUB_TOKEN}" ]]; then
+  if [[ -n ${GITHUB_TOKEN} ]]; then
     CHART_GIT_REPO="https://${GITHUB_TOKEN}:x-oauth-basic@${CHART_BASE_URL}"
-  elif [[ -n "${GITLAB_CI_TOKEN}" ]]; then
+  elif [[ -n ${GITLAB_CI_TOKEN} ]]; then
     CHART_GIT_REPO="https://gitlab-ci-token:${GITLAB_CI_TOKEN}@${CHART_BASE_URL}"
   fi
 
@@ -74,7 +72,7 @@ function clone {
   CHART_PATH=$(yq r ${1} spec.chart.path)
 
   if [ ! -z ${3} ]; then
-    if [[ "${CHART_BASE_URL}" == "${RELEASE_BASE_URL}" ]] && [[ ${GIT_REF} == "${4}" ]]; then
+    if [[ ${CHART_BASE_URL} == "${RELEASE_BASE_URL}" ]] && [[ ${GIT_REF} == "${4}" ]]; then
       # Clone from the head repository branch/ref
       fetch ${2} ${2}/${CHART_PATH} ${RELEASE_GIT_REPO} ${3} ${ORIGIN}
     else
@@ -82,11 +80,11 @@ function clone {
       fetch ${2} ${2}/${CHART_PATH} ${CHART_GIT_REPO} ${GIT_REF} ${ORIGIN}
     fi
   else
-      fetch ${2} ${2}/${CHART_PATH} ${CHART_GIT_REPO} ${GIT_REF} ${ORIGIN}
+    fetch ${2} ${2}/${CHART_PATH} ${CHART_GIT_REPO} ${GIT_REF} ${ORIGIN}
   fi
 }
 
-function validate {
+function validate() {
   if [[ $(isHelmRelease ${HELM_RELEASE}) == "false" ]]; then
     echo "\"${HELM_RELEASE}\" is not of kind HelmRelease!"
     exit 1
@@ -95,9 +93,9 @@ function validate {
   TMPDIR=$(mktemp -d)
   CHART_PATH=$(yq r ${HELM_RELEASE} spec.chart.path)
 
-  if [[ -z "${CHART_PATH}" ]]; then
+  if [[ -z ${CHART_PATH} ]]; then
     echo "Downloading to ${TMPDIR}"
-    CHART_DIR=$(download ${HELM_RELEASE} ${TMPDIR} ${HELM_VER}| tail -n1)
+    CHART_DIR=$(download ${HELM_RELEASE} ${TMPDIR} ${HELM_VER} | tail -n1)
   else
     echo "Cloning to ${TMPDIR}"
     CHART_DIR=$(clone ${HELM_RELEASE} ${TMPDIR} ${HRVAL_HEAD_BRANCH} ${HRVAL_BASE_BRANCH} | tail -n1)
@@ -108,10 +106,10 @@ function validate {
 
   if [[ ${IGNORE_VALUES} == "true" ]]; then
     echo "Ingnoring Helm release values"
-    echo "" > ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml
+    echo "" >${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml
   else
     echo "Extracting values to ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml"
-    yq r ${HELM_RELEASE} spec.values > ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml
+    yq r ${HELM_RELEASE} spec.values >${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml
   fi
 
   echo "Writing Helm release to ${TMPDIR}/${HELM_RELEASE_NAME}.release.yaml"
@@ -122,7 +120,7 @@ function validate {
     helmv3 template ${HELM_RELEASE_NAME} ${CHART_DIR} \
       --namespace ${HELM_RELEASE_NAMESPACE} \
       --skip-crds=true \
-      -f ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml > ${TMPDIR}/${HELM_RELEASE_NAME}.release.yaml
+      -f ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml >${TMPDIR}/${HELM_RELEASE_NAME}.release.yaml
   else
     if [[ "${CHART_PATH}" ]]; then
       helm dependency build ${CHART_DIR}
@@ -130,7 +128,7 @@ function validate {
     helm template ${CHART_DIR} \
       --name ${HELM_RELEASE_NAME} \
       --namespace ${HELM_RELEASE_NAMESPACE} \
-      -f ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml > ${TMPDIR}/${HELM_RELEASE_NAME}.release.yaml
+      -f ${TMPDIR}/${HELM_RELEASE_NAME}.values.yaml >${TMPDIR}/${HELM_RELEASE_NAME}.release.yaml
   fi
 
   echo "Validating Helm release ${HELM_RELEASE_NAME}.${HELM_RELEASE_NAMESPACE} against Kubernetes ${KUBE_VER}"

@@ -6,19 +6,19 @@ DIR=${1}
 IGNORE_VALUES=${2-false}
 KUBE_VER=${3-master}
 HELM_VER=${4-v2}
-HRVAL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )/hrval.sh"
+HRVAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/hrval.sh"
 AWS_S3_REPO=${5-false}
 AWS_S3_REPO_NAME=${6-""}
 AWS_S3_PLUGIN={$7-""}
 
 if [[ ${HELM_VER} == "v2" ]]; then
-    helm init --client-only
+  helm init --client-only
 fi
 
 if [[ ${AWS_S3_REPO} == true ]]; then
-    helm plugin install ${AWS_S3_PLUGIN}
-    helm repo add ${AWS_S3_REPO_NAME} s3:/${AWS_S3_REPO_NAME}/charts
-    helm repo update
+  helm plugin install ${AWS_S3_PLUGIN}
+  helm repo add ${AWS_S3_REPO_NAME} s3:/${AWS_S3_REPO_NAME}/charts
+  helm repo update
 fi
 
 # If the path provided is actually a file, just run hrval against this one file
@@ -33,10 +33,10 @@ if [ ! -d "$DIR" ]; then
   exit 1
 fi
 
-function isHelmRelease {
+function isHelmRelease() {
   KIND=$(yq r ${1} kind)
   if [[ ${KIND} == "HelmRelease" ]]; then
-      echo true
+    echo true
   else
     echo false
   fi
@@ -45,10 +45,10 @@ function isHelmRelease {
 # Find yaml files in directory recursively
 DIR_PATH=$(echo ${DIR} | sed "s/^\///;s/\/$//")
 FILES_TESTED=0
-for f in `find ${DIR} -type f -name '*.yaml' -or -name '*.yml'`; do
+for f in $(find ${DIR} -type f -name '*.yaml' -or -name '*.yml'); do
   if [[ $(isHelmRelease ${f}) == "true" ]]; then
     ${HRVAL} ${f} ${IGNORE_VALUES} ${KUBE_VER} ${HELM_VER}
-    FILES_TESTED=$(( FILES_TESTED+1 ))
+    FILES_TESTED=$((FILES_TESTED + 1))
   else
     echo "Ignoring ${f} not a HelmRelease"
   fi
